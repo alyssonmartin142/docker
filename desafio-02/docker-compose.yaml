@@ -1,0 +1,49 @@
+version: "3"
+
+services:
+  web:
+    container_name: web
+    image: nginx:1.19.7-alpine
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "8080:80"
+    networks:
+      - node-network
+    depends_on:
+      - app
+    # environment:
+    # - NGINX_HOST=foobar.com
+    # - NGINX_PORT=80
+
+  database:
+    image: mysql:5.7
+    container_name: database
+    restart: always
+    tty: true
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=nodedb
+    volumes:
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - node-network
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  app:
+    depends_on:
+      database:
+        condition: service_healthy
+    build:
+      context: "./app"
+    image: alyssonmartin142/people-app
+    container_name: app
+    restart: unless-stopped
+    networks:
+      - node-network
+networks:
+  node-network:
+    driver: bridge
